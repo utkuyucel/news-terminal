@@ -1,0 +1,25 @@
+# virtaul environments
+
+venv/
+*_venv/
+venv_*/
+
+# environment variables
+.env
+
+# caches
+
+__pycache__/
+.mypy_cache/
+
+# files
+
+*.json
+*.log
+*.sqlite3
+*.png
+*.csv
+*.tsv
+*.txt
+
+
