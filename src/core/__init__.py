@@ -1,0 +1,1 @@
+"""Core news terminal modules."""
