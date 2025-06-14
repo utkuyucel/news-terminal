@@ -17,7 +17,8 @@ from rich.live import Live
 from rich.layout import Layout
 
 console = Console()
-REFRESH_INTERVAL = 30  # seconds
+REFRESH_INTERVAL = 0.1  # 100ms for real-time streaming
+NEWS_FETCH_INTERVAL = 1  # Fetch new content every 5 seconds
 MAX_TITLE_LENGTH = 80
 MAX_ITEMS_DISPLAY = 30
 _seen_hashes = set()
@@ -70,13 +71,13 @@ def _parse_datetime(entry: feedparser.FeedParserDict) -> datetime:
 def _is_valid_news_time(dt: datetime) -> bool:
     """Filter out future dates that are clearly invalid."""
     now = datetime.now(TARGET_TZ)
-    max_future = now + timedelta(hours=1)
+    max_future = now + timedelta(minutes=5)  # Only allow 5 minutes in future for clock differences
     min_past = now - timedelta(days=30)
     return min_past <= dt <= max_future
 
 def _format_time(dt: datetime) -> str:
-    """Format datetime in a clean, readable format."""
-    return dt.strftime("%m/%d %H:%M")
+    """Format datetime as DD-MM : HH:MM:SS"""
+    return dt.strftime("%d-%m : %H:%M:%S")
 
 def _truncate_title(title: str) -> str:
     """Truncate title to fit display while preserving readability."""
@@ -85,30 +86,35 @@ def _truncate_title(title: str) -> str:
     return title[:MAX_TITLE_LENGTH-3] + "..."
 
 def _create_header(topic_name: str) -> Panel:
-    """Create a beautiful header panel."""
-    current_time = datetime.now(TARGET_TZ).strftime("%Y-%m-%d %H:%M:%S UTC+3")
+    """Create a beautiful header panel with live clock."""
+    current_time = datetime.now(TARGET_TZ).strftime("%H:%M:%S UTC+3")
+    current_date = datetime.now(TARGET_TZ).strftime("%A, %B %d, %Y")
+    
     header_text = Text()
     header_text.append("📰 ", style="bold yellow")
     header_text.append(f"Live {topic_name} News", style="bold cyan")
+    header_text.append("   🕒 ", style="bold yellow")
+    header_text.append(f"{current_time}", style="bold green")
     header_text.append("\n")
-    header_text.append(f"🕒 {current_time}", style="dim white")
+    header_text.append(f"📅 {current_date}", style="dim cyan")
     
     return Panel(
         Align.center(header_text),
         style="bold blue",
         border_style="cyan",
-        padding=(1, 2)
+        padding=(1, 2),
+        expand=True
     )
 
 def _create_news_table(articles: List[Tuple[datetime, str, str]]) -> Table:
     """Create a styled news table."""
-    table = Table(show_header=True, header_style="bold magenta", border_style="dim white")
-    table.add_column("🕒 Time", style="cyan", width=12, no_wrap=True)
-    table.add_column("📰 Title", style="white", min_width=50)
-    table.add_column("📺 Source", style="green", width=20, no_wrap=True)
+    table = Table(show_header=True, header_style="bold magenta", border_style="dim white", expand=True)
+    table.add_column("🕒 Time", style="cyan", width=18, no_wrap=True)
+    table.add_column("📰 Title", style="white", ratio=1)
+    table.add_column("📺 Source", style="green", width=22, no_wrap=True)
     
-    # Sort by time (newest first) and limit display
-    sorted_articles = sorted(articles, key=lambda x: x[0], reverse=True)[:MAX_ITEMS_DISPLAY]
+    # Sort by time (oldest first) so latest appears at bottom
+    sorted_articles = sorted(articles, key=lambda x: x[0])[:MAX_ITEMS_DISPLAY]
     
     for dt, title, source in sorted_articles:
         time_str = _format_time(dt)
@@ -160,58 +166,73 @@ async def _gather_feeds(sources: List[NewsSource]) -> List[Tuple[feedparser.Feed
     return valid
 
 def _create_layout(topic: NewsTopic, articles: List[Tuple[datetime, str, str]]) -> Layout:
-    """Create the main layout with header and news table."""
+    """Create the main layout with header and news table - freshly generated each time."""
     layout = Layout()
     
+    # Generate fresh components for real-time updates
+    header_panel = _create_header(topic.name)
+    news_table = _create_news_table(articles)
+    
     layout.split_column(
-        Layout(_create_header(topic.name), name="header", size=5),
-        Layout(_create_news_table(articles), name="main")
+        Layout(header_panel, name="header", size=5),
+        Layout(news_table, name="main")
     )
     
     return layout
 
 async def _stream_topic(topic: NewsTopic) -> None:
-    """Stream news for a specific topic with live updates."""
+    """Stream news for a specific topic with real-time updates."""
     articles = []
     
     # Initial load
-    console.print("[yellow]Loading news feeds...[/yellow]")
-    
-    with Live(_create_layout(topic, articles), refresh_per_second=1, screen=True) as live:
+    console.print("[yellow]Loading news feeds...[/yellow]")    
+    with Live(_create_layout(topic, articles), refresh_per_second=10, screen=True) as live:
+        last_news_fetch = 0
+        news_refresh_counter = 0
+        
         while True:
             try:
-                feeds = await _gather_feeds(topic.sources)
-                new_items = []
+                current_time = asyncio.get_event_loop().time()
                 
-                for feed, src in feeds:
-                    for entry in feed.entries:
-                        key = _hash_entry(entry)
-                        if key not in _seen_hashes:
-                            _seen_hashes.add(key)
-                            dt = _parse_datetime(entry)
-                            
-                            # Only add if it's a valid time
-                            if _is_valid_news_time(dt):
-                                title = entry.get("title", "No Title")
-                                new_items.append((dt, title, src.name))
+                # Fetch news continuously - every NEWS_FETCH_INTERVAL seconds
+                if current_time - last_news_fetch >= NEWS_FETCH_INTERVAL:
+                    console.print(f"[dim]Fetching news... ({news_refresh_counter})[/dim]", end="\r")
+                    feeds = await _gather_feeds(topic.sources)
+                    new_items = []
+                    
+                    for feed, src in feeds:
+                        for entry in feed.entries:
+                            key = _hash_entry(entry)
+                            if key not in _seen_hashes:
+                                _seen_hashes.add(key)
+                                dt = _parse_datetime(entry)                                
+                                # Only add if it's a valid time
+                                if _is_valid_news_time(dt):
+                                    title = entry.get("title", "No Title")
+                                    new_items.append((dt, title, src.name))
+                    
+                    # Add new items to our collection
+                    if new_items:
+                        articles.extend(new_items)
+                        console.bell()  # Audio notification for new articles
+                        console.print(f"[green]+ {len(new_items)} new articles[/green]")
+                    
+                    # Clean up old articles to prevent memory bloat
+                    if len(articles) > MAX_ITEMS_DISPLAY * 3:
+                        articles = sorted(articles, key=lambda x: x[0])[-MAX_ITEMS_DISPLAY * 2:]
+                    
+                    last_news_fetch = current_time
+                    news_refresh_counter += 1
                 
-                # Add new items to our collection
-                if new_items:
-                    articles.extend(new_items)
-                    console.bell()  # Audio notification for new articles
+                # Always update display for real-time clock and latest content
+                layout = _create_layout(topic, articles)
+                live.update(layout)
                 
-                # Update the display
-                live.update(_create_layout(topic, articles))
-                
-                # Clean up old articles to prevent memory bloat
-                if len(articles) > MAX_ITEMS_DISPLAY * 3:
-                    articles = sorted(articles, key=lambda x: x[0], reverse=True)[:MAX_ITEMS_DISPLAY * 2]
-                
-                await asyncio.sleep(REFRESH_INTERVAL)
+                await asyncio.sleep(REFRESH_INTERVAL)  # Real-time updates every 100ms
                 
             except Exception as e:
                 console.print(f"[red]Error in news stream: {e}[/red]")
-                await asyncio.sleep(5)  # Wait a bit before retrying
+                await asyncio.sleep(0.5)  # Short retry delay for real-time feel
 
 def _select_topic() -> NewsTopic:
     """Allow user to select a news topic."""
