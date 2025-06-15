@@ -18,7 +18,7 @@ A professional Bloomberg-style terminal for real-time news aggregation from mult
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/utkuyucel/news-terminal
    cd news-terminal
    ```
 
