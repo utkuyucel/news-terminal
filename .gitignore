@@ -24,3 +24,7 @@ __pycache__/
 # specific files
 
 TODO.txt
+
+# IDEs
+.idea/
+.vscode/
