@@ -1,52 +1,106 @@
 # News Terminal 📰
 
-A Bloomberg-style streaming news terminal optimized for traders. Features real-time news streaming with interactive topic selection, latest news at the bottom, and visual alerts for new articles.
+A professional Bloomberg-style terminal for real-time news aggregation from multiple sources. Built with Python, it combines API feeds and RSS sources to provide comprehensive news coverage with live updates.
 
 ## Features
 
-- **📋 Interactive Topic Selection**: Choose from Economic, Middle East, Technology, Breaking News, Politics, Crypto, and Energy
-- **🔄 Real-time Streaming**: Latest news appears at the bottom for easy scanning
-- **⚡ Visual Flash Alerts**: Terminal flashes when new articles arrive
-- **📈 Trading Optimized**: Focus on market-moving news categories
-- **🕐 Live Clock**: Real-time timestamp display
-- **📊 Stream Statistics**: Track article count and feed status
-- **🎯 Topic-focused Feeds**: Curated RSS sources for each category
-- **🚀 Concurrent Processing**: Efficient parallel news fetching
+- **� Real-time Updates**: Automatic refresh every second with live news feed
+- **� Multi-source Aggregation**: Combines News API, RSS feeds, and free sources
+- **🎯 Category Filtering**: Technology, Business, General, Politics, Science, and more
+- **⚡ Rich Terminal UI**: Beautiful terminal interface with Rich library
+- **🕐 Live Clock**: Real-time timestamp and status display
+- **� Deduplication**: Smart removal of duplicate articles
+- **⚡ Concurrent Processing**: Efficient parallel news fetching
+- **💾 Intelligent Caching**: Reduces API calls with smart caching
+- **🌐 Multiple Output Formats**: Terminal UI, simple mode, or JSON output
 
-## Installation
+## Quick Start
 
-1. Clone or download this repository
-2. Install dependencies:
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd news-terminal
+   ```
+
+2. **Install dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-## Usage
+3. **Set up API key** (optional but recommended)
+   - Get a free API key from [NewsAPI.org](https://newsapi.org)
+   - The key is already configured in `.env` file
+   - Without API key, only free sources (RSS, Hacker News, Reddit) will be used
 
-Run the streaming news terminal:
+4. **Run the terminal**
+   ```bash
+   python run.py
+   ```
+
+## Usage Examples
+
+### Trading Mode (NEW!)
+
+For stock traders, use the specialized trading terminal:
 
 ```bash
-python run.py
+# Ultra-fast trading terminal (0.5s refresh)
+python trading.py
+
+# Focus only on earnings news
+python trading.py --earnings-only
+
+# Include cryptocurrency news
+python trading.py --crypto
+
+# Quick fetch for trading decisions
+python trading.py --fetch
 ```
 
-**Interactive Usage:**
-1. Select a topic from the menu (Economic, Middle East, etc.)
-2. Watch real-time news stream with latest at bottom
-3. Terminal flashes when new articles arrive
-4. Press `Ctrl+C` to return to topic selection or exit
+**Trading Features:**
+- ⚡ **0.5-second refresh rate** for ultra-real-time updates
+- 🕐 **Precise clock with seconds** for timing trades
+- 🟢 **Market hours indicator** (US markets 9:30 AM - 4:00 PM ET)
+- ⚡ **Urgent news highlighting** with trading keywords (earnings, mergers, FDA approvals, etc.)
+- 📈 **Trading-focused categories**: Financial, Earnings, Crypto
+- 🔴 **Visual alerts** for market-moving news
+- 📊 **Extended article display** (100 articles vs 50 in regular mode)
 
-**For Trading:**
-- Economic news for market movements
-- Middle East news for geopolitical events  
-- Energy news for commodity trading
-- Crypto news for digital asset trading
+### Basic Usage
+```bash
+# Run with default categories (general, technology, business)
+python run.py
 
-## Configuration
+# Run with specific categories
+python run.py -c technology business politics
 
-### RSS Sources (`data/rss.py`)
-- Add or modify RSS feed sources
-- Categorize feeds (finance, technology, general, etc.)
-- Set priority levels for sources
+# Simple mode for basic terminals
+python run.py --simple
+```
+
+### Fetch Mode (No Live Updates)
+```bash
+# Fetch news once and display
+python run.py --fetch
+
+# Output in JSON format
+python run.py --fetch --json
+
+# Fetch specific categories
+python run.py --fetch -c technology
+```
+
+### Advanced Options
+```bash
+# Verbose logging
+python run.py --verbose
+
+# Force refresh cache
+python run.py --refresh-cache
+
+# Help and all options
+python run.py --help
+```
 
 ### Application Settings (`config.py`)
 - Refresh interval (default: 1 second)
